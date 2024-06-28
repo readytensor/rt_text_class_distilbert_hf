@@ -4,10 +4,10 @@ import torch
 import joblib
 import numpy as np
 import pandas as pd
-from config import paths
-from torch.utils.data import DataLoader
 from tqdm import tqdm
+from config import paths
 from datasets import Dataset
+from torch.utils.data import DataLoader
 from sklearn.exceptions import NotFittedError
 from transformers import DistilBertForSequenceClassification, Trainer, TrainingArguments
 

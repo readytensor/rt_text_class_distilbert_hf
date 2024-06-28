@@ -41,7 +41,6 @@ def create_predictions_dataframe(
         prediction_field_name (str): Field name to use for predicted class.
         ids: ids as a numpy array for each of the samples in  predictions.
         id_field_name (str): Name to use for the id field.
-        label_encoding_map (dict): Mapping of class labels to integers.
         return_probs (bool, optional): If True, returns the predicted probabilities
             for each class. If False, returns the final predicted class for each
             data point. Defaults to False.
@@ -90,6 +89,7 @@ def run_batch_predictions(
         predictor_file_path (str): Path to the saved predictor model file.
         predictions_file_path (str): Path where the predictions file will be saved.
         label_encoding_map_file_path (str): Path to the label encoding map file.
+        saved_tokenizer_dir_path (str): Path to the saved tokenizer directory.
     """
 
     try:

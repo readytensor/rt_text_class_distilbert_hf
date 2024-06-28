@@ -69,4 +69,5 @@ LABEL_ENCODING_MAP_FILE_PATH = os.path.join(
     MODEL_ARTIFACTS_PATH, "label_encoding_map.json"
 )
 
+# Path to tokenizer directory
 SAVED_TOKENIZER_DIR_PATH = os.path.join(MODEL_ARTIFACTS_PATH, "tokenizer")

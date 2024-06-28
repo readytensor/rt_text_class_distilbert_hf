@@ -1,12 +1,11 @@
 import json
 import os
 import random
-from typing import Any, Dict, List, Tuple, Union
-
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from datasets import Dataset
+from typing import Any, Dict, List, Tuple, Union
+from sklearn.model_selection import train_test_split
 from transformers import DistilBertTokenizer
 
 
@@ -215,7 +214,21 @@ def load_hf_dataset(
     target_col_name: str,
     is_train: bool = True,
     tokenizer_dir_path: str = None,
-):
+) -> Tuple[Dataset, DistilBertTokenizer]:
+    """
+    Loads a pandas DataFrame into a Hugging Face Dataset object and tokenizes the text
+    column using a DistilBERT tokenizer.
+
+    Args:
+    - data (pd.DataFrame): The input data as a DataFrame.
+    - text_col_name (str): The name of the column in the DataFrame that holds the text data.
+    - target_col_name (str): The name of the column in the DataFrame that holds the class labels.
+    - is_train (bool, optional): Whether the dataset is a training dataset. Defaults to True.
+    - tokenizer_dir_path (str, optional): The directory path to the tokenizer. Defaults to None.
+
+    Returns:
+    - Tuple[Dataset, DistilBertTokenizer]: A tuple containing the tokenized dataset and the tokenizer.
+    """
 
     dataset = Dataset.from_pandas(data)
 
@@ -237,13 +250,34 @@ def load_hf_dataset(
     return tokenized_dataset, tokenizer
 
 
-def label_encoding(data: pd.DataFrame, col_name: str):
+def label_encoding(data: pd.DataFrame, col_name: str) -> Tuple[pd.DataFrame, Dict]:
+    """
+    Label encodes the target column of the data.
+
+    Args:
+    - data (pd.DataFrame): The input data as a DataFrame.
+    - col_name (str): The name of the column in the DataFrame that holds the class labels.
+
+    Returns:
+    - (pd.DataFrame, Dict): The DataFrame with the target column label encoded and the mapping used for encoding.
+    """
     mapping = {label: i for i, label in enumerate(data[col_name].unique())}
     data[col_name] = data[col_name].map(mapping)
     return data, mapping
 
 
 def inverse_label_encoding(data: pd.DataFrame, col_name: str, mapping: Dict):
+    """
+    Inverse label encodes the target column of the data.
+
+    Args:
+    - data (pd.DataFrame): The input data as a DataFrame.
+    - col_name (str): The name of the column in the DataFrame that holds the class labels.
+    - mapping (Dict): The mapping used for encoding.
+
+    Returns:
+    - pd.DataFrame: The DataFrame with the original target column.
+    """
     inverse_mapping = {v: k for k, v in mapping.items()}
     data[col_name] = data[col_name].map(inverse_mapping)
     return data

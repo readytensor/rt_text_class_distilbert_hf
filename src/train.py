@@ -20,8 +20,6 @@ from utils import (
 
 logger = get_logger(task_name="train")
 
-import sys
-
 
 def run_training(
     input_schema_dir: str = paths.INPUT_SCHEMA_DIR,
@@ -39,14 +37,12 @@ def run_training(
     Args:
         input_schema_dir (str, optional): The directory path of the input schema.
         saved_schema_dir_path (str, optional): The path where to save the schema.
-        model_config_file_path (str, optional): The path of the model
-            configuration file.
+        model_config_file_path (str, optional): The path of the model configuration file.
         train_dir (str, optional): The directory path of the train data.
         label_encoding_map_file_path (str, optional): The path of the label encoding file.
-        predictor_dir_path (str, optional): Dir path where to save the
-            predictor model.
-        default_hyperparameters_file_path (str, optional): The path of the default
-            hyperparameters file.
+        predictor_dir_path (str, optional): Dir path where to save the predictor model.
+        default_hyperparameters_file_path (str, optional): The path of the default hyperparameters file.
+        saved_tokenizer_dir_path (str, optional): The path to save the tokenizer.
     Returns:
         None
     """
