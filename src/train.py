@@ -4,7 +4,6 @@ from data_models.data_validator import validate_data
 from logger import get_logger, log_error
 
 from prediction.predictor_model import (
-    evaluate_predictor_model,
     save_predictor_model,
     train_predictor_model,
 )
@@ -14,7 +13,7 @@ from utils import (
     read_csv_in_directory,
     read_json_as_dict,
     set_seeds,
-    split_train_val,
+    save_json,
     load_hf_dataset,
     label_encoding,
 )
@@ -29,10 +28,10 @@ def run_training(
     saved_schema_dir_path: str = paths.SAVED_SCHEMA_DIR_PATH,
     model_config_file_path: str = paths.MODEL_CONFIG_FILE_PATH,
     train_dir: str = paths.TRAIN_DIR,
-    preprocessing_config_file_path: str = paths.PREPROCESSING_CONFIG_FILE_PATH,
-    preprocessing_dir_path: str = paths.PREPROCESSING_DIR_PATH,
+    label_encoding_map_file_path: str = paths.LABEL_ENCODING_MAP_FILE_PATH,
     predictor_dir_path: str = paths.PREDICTOR_DIR_PATH,
     default_hyperparameters_file_path: str = paths.DEFAULT_HYPERPARAMETERS_FILE_PATH,
+    saved_tokenizer_dir_path: str = paths.SAVED_TOKENIZER_DIR_PATH,
 ) -> None:
     """
     Run the training process and saves model artifacts
@@ -43,10 +42,7 @@ def run_training(
         model_config_file_path (str, optional): The path of the model
             configuration file.
         train_dir (str, optional): The directory path of the train data.
-        preprocessing_config_file_path (str, optional): The path of the preprocessing
-            configuration file.
-        preprocessing_dir_path (str, optional): The dir path where to save the pipeline
-            and target encoder.
+        label_encoding_map_file_path (str, optional): The path of the label encoding file.
         predictor_dir_path (str, optional): Dir path where to save the
             predictor model.
         default_hyperparameters_file_path (str, optional): The path of the default
@@ -74,7 +70,6 @@ def run_training(
         # load train data
         logger.info("Loading train data...")
         train_data = read_csv_in_directory(file_dir_path=train_dir)
-        train_data = train_data.iloc[0:500]
 
         # validate the data
         logger.info("Validating train data...")
@@ -84,10 +79,14 @@ def run_training(
 
         # target encoding
         train_data, label_encoding_map = label_encoding(train_data, data_schema.target)
+        save_json(label_encoding_map_file_path, label_encoding_map)
 
-        train_data = load_hf_dataset(
+        train_data, tokenizer = load_hf_dataset(
             train_data, data_schema.text_field, data_schema.target
         )
+
+        logger.info("Saving tokenizer...")
+        tokenizer.save_pretrained(saved_tokenizer_dir_path)
 
         logger.info("Training classifier...")
         default_hyperparameters = read_json_as_dict(default_hyperparameters_file_path)

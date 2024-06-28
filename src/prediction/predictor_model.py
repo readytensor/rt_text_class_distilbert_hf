@@ -1,9 +1,12 @@
 import os
 import warnings
+import torch
 import joblib
 import numpy as np
 import pandas as pd
 from config import paths
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 from datasets import Dataset
 from sklearn.exceptions import NotFittedError
 from transformers import DistilBertForSequenceClassification, Trainer, TrainingArguments
@@ -14,6 +17,12 @@ warnings.filterwarnings("ignore")
 
 PREDICTOR_FILE_NAME = "predictor_model"
 PARAMS_FILE_NAME = "params.joblib"
+
+device = torch.device(
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps" if torch.backends.mps.is_available() else "cpu"
+)
 
 
 class TextClassifier:
@@ -29,7 +38,8 @@ class TextClassifier:
         self,
         num_classes: int,
         num_train_epochs: int = 3,
-        train_batch_size: int = 8,
+        batch_size: int = 8,
+        learning_rate: float = 5e-5,
         **kwargs,
     ):
         """Construct a new DistilBERT text classifier.
@@ -39,7 +49,9 @@ class TextClassifier:
         """
         self.num_classes = num_classes
         self.num_train_epochs = num_train_epochs
-        self.train_batch_size = train_batch_size
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
+        self.kwargs = kwargs
 
         self.model = self.build_model()
         self._is_trained = False
@@ -63,9 +75,8 @@ class TextClassifier:
         training_args = TrainingArguments(
             output_dir=paths.MODEL_ARTIFACTS_PATH,
             num_train_epochs=self.num_train_epochs,
-            per_device_train_batch_size=self.train_batch_size,  # batch size for training
-            warmup_steps=500,  # number of warmup steps for learning rate scheduler
-            weight_decay=0.01,  # strength of weight decay
+            per_device_train_batch_size=self.batch_size,
+            learning_rate=self.learning_rate,
             logging_steps=10,
         )
         trainer = Trainer(
@@ -76,7 +87,7 @@ class TextClassifier:
         trainer.train()
         self._is_trained = True
 
-    def predict(self, inputs: pd.DataFrame) -> np.ndarray:
+    def predict(self, input_dataset: Dataset, return_probs: bool = True) -> np.ndarray:
         """Predict class labels for the given data.
 
         Args:
@@ -84,17 +95,26 @@ class TextClassifier:
         Returns:
             numpy.ndarray: The predicted class labels.
         """
-        return self.model.predict(inputs)
+        self.model.eval()
+        self.model.to(device)
+        dataloader = DataLoader(input_dataset, batch_size=self.batch_size)
 
-    def predict_proba(self, inputs: pd.DataFrame) -> np.ndarray:
-        """Predict class probabilities for the given data.
+        all_probs = []
+        with torch.no_grad():
+            for batch in tqdm(dataloader):
+                input_ids = torch.stack(batch["input_ids"], dim=1).to(self.model.device)
+                attention_mask = torch.stack(batch["attention_mask"], dim=1).to(
+                    self.model.device
+                )
+                outputs = self.model(input_ids, attention_mask=attention_mask)
+                logits = outputs.logits
+                probabilities = torch.softmax(logits, dim=-1)
+                all_probs.append(probabilities.cpu().tolist())
 
-        Args:
-            inputs (pandas.DataFrame): The input data.
-        Returns:
-            numpy.ndarray: The predicted class probabilities.
-        """
-        return self.model.predict_proba(inputs)
+        if return_probs:
+            return np.concatenate(all_probs, axis=0)
+
+        return np.argmax(probabilities, axis=1)
 
     def evaluate(self, test_inputs: pd.DataFrame, test_targets: pd.Series) -> float:
         """Evaluate the binary classifier and return the accuracy.
@@ -123,7 +143,7 @@ class TextClassifier:
         params = {
             "num_classes": self.num_classes,
             "num_train_epochs": self.num_train_epochs,
-            "train_batch_size": self.train_batch_size,
+            "batch_size": self.batch_size,
         }
         joblib.dump(params, os.path.join(model_dir_path, PARAMS_FILE_NAME))
 
@@ -162,7 +182,7 @@ def train_predictor_model(
         hyperparameters (dict): Hyperparameters for the classifier.
 
     Returns:
-        'Classifier': The classifier model
+        'TextClassifier': The classifier model
     """
     classifier = TextClassifier(num_classes=num_classes, **hyperparameters)
     classifier.fit(train_dataset=train_dataset)
@@ -170,7 +190,7 @@ def train_predictor_model(
 
 
 def predict_with_model(
-    classifier: TextClassifier, data: pd.DataFrame, return_probs=False
+    classifier: TextClassifier, data: Dataset, return_probs=False
 ) -> np.ndarray:
     """
     Predict class probabilities for the given data.
@@ -184,9 +204,7 @@ def predict_with_model(
     Returns:
         np.ndarray: The predicted classes or class probabilities.
     """
-    if return_probs:
-        return classifier.predict_proba(data)
-    return classifier.predict(data)
+    return classifier.predict(data, return_probs=return_probs)
 
 
 def save_predictor_model(model: TextClassifier, predictor_dir_path: str) -> None:

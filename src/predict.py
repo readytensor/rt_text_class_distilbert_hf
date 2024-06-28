@@ -9,7 +9,12 @@ from data_models.prediction_data_model import validate_predictions
 from logger import get_logger, log_error
 from prediction.predictor_model import load_predictor_model, predict_with_model
 from schema.data_schema import load_saved_schema
-from utils import read_csv_in_directory, read_json_as_dict, save_dataframe_as_csv
+from utils import (
+    read_csv_in_directory,
+    read_json_as_dict,
+    save_dataframe_as_csv,
+    load_hf_dataset,
+)
 
 logger = get_logger(task_name="predict")
 
@@ -36,6 +41,7 @@ def create_predictions_dataframe(
         prediction_field_name (str): Field name to use for predicted class.
         ids: ids as a numpy array for each of the samples in  predictions.
         id_field_name (str): Name to use for the id field.
+        label_encoding_map (dict): Mapping of class labels to integers.
         return_probs (bool, optional): If True, returns the predicted probabilities
             for each class. If False, returns the final predicted class for each
             data point. Defaults to False.
@@ -62,9 +68,10 @@ def run_batch_predictions(
     saved_schema_dir_path: str = paths.SAVED_SCHEMA_DIR_PATH,
     model_config_file_path: str = paths.MODEL_CONFIG_FILE_PATH,
     test_dir: str = paths.TEST_DIR,
-    preprocessing_dir_path: str = paths.PREPROCESSING_DIR_PATH,
     predictor_dir_path: str = paths.PREDICTOR_DIR_PATH,
     predictions_file_path: str = paths.PREDICTIONS_FILE_PATH,
+    label_encoding_map_file_path: str = paths.LABEL_ENCODING_MAP_FILE_PATH,
+    saved_tokenizer_dir_path: str = paths.SAVED_TOKENIZER_DIR_PATH,
 ) -> None:
     """
     Run batch predictions on test data, save the predicted probabilities to a CSV file.
@@ -80,65 +87,68 @@ def run_batch_predictions(
         saved_schema_dir_path (str): Dir path to the saved data schema.
         model_config_file_path (str): Path to the model configuration file.
         test_dir (str): Directory path for the test data.
-        pipeline_file_path (str): Path to the saved pipeline file.
-        target_encoder_file_path (str): Path to the saved target encoder file.
         predictor_file_path (str): Path to the saved predictor model file.
         predictions_file_path (str): Path where the predictions file will be saved.
+        label_encoding_map_file_path (str): Path to the label encoding map file.
     """
 
     try:
         logger.info("Making batch predictions...")
 
-        # logger.info("Loading schema...")
-        # data_schema = load_saved_schema(saved_schema_dir_path)
+        logger.info("Loading schema...")
+        data_schema = load_saved_schema(saved_schema_dir_path)
 
-        # logger.info("Loading model config...")
-        # model_config = read_json_as_dict(model_config_file_path)
+        logger.info("Loading model config...")
+        model_config = read_json_as_dict(model_config_file_path)
 
-        # logger.info("Loading prediction input data...")
-        # test_data = read_csv_in_directory(file_dir_path=test_dir)
+        logger.info("Loading prediction input data...")
+        test_data = read_csv_in_directory(file_dir_path=test_dir)
 
-        # # validate the data
-        # logger.info("Validating prediction data...")
-        # validated_test_data = validate_data(
-        #     data=test_data, data_schema=data_schema, is_train=False
-        # )
+        # validate the data
+        logger.info("Validating prediction data...")
+        test_data = validate_data(
+            data=test_data, data_schema=data_schema, is_train=False
+        )
 
-        # logger.info("Loading pipeline and encoder...")
-        # preprocessor, target_encoder = load_pipeline_and_target_encoder(
-        #     preprocessing_dir_path
-        # )
-
-        # logger.info("Transforming prediction inputs ...")
-        # transformed_data, _ = transform_data(
-        #     preprocessor, target_encoder, validated_test_data
-        # )
+        test_data, _ = load_hf_dataset(
+            test_data,
+            data_schema.text_field,
+            data_schema.target,
+            is_train=False,
+            tokenizer_dir_path=saved_tokenizer_dir_path,
+        )
 
         logger.info("Loading predictor model...")
         predictor_model = load_predictor_model(predictor_dir_path)
 
-        # logger.info("Making predictions...")
-        # predictions_arr = predict_with_model(
-        #     predictor_model, transformed_data, return_probs=True
-        # )
+        logger.info("Making predictions...")
+        predictions_arr = predict_with_model(
+            predictor_model, test_data, return_probs=True
+        )
 
-        # logger.info("Transforming predictions into dataframe...")
-        # predictions_df = create_predictions_dataframe(
-        #     predictions_arr,
-        #     data_schema.target_classes,
-        #     model_config["prediction_field_name"],
-        #     test_data[data_schema.id],
-        #     data_schema.id,
-        #     return_probs=True,
-        # )
+        label_encoding_map = read_json_as_dict(label_encoding_map_file_path)
+        sorted_maping = dict(
+            sorted(label_encoding_map.items(), key=lambda item: item[1])
+        )
+        class_names = list(sorted_maping.keys())
 
-        # logger.info("Validating predictions...")
-        # validated_predictions = validate_predictions(predictions_df, data_schema)
+        logger.info("Transforming predictions into dataframe...")
+        predictions_df = create_predictions_dataframe(
+            predictions_arr,
+            class_names,
+            model_config["prediction_field_name"],
+            test_data[data_schema.id],
+            data_schema.id,
+            return_probs=True,
+        )
 
-        # logger.info("Saving predictions...")
-        # save_dataframe_as_csv(
-        #     dataframe=validated_predictions, file_path=predictions_file_path
-        # )
+        logger.info("Validating predictions...")
+        validated_predictions = validate_predictions(predictions_df, data_schema)
+
+        logger.info("Saving predictions...")
+        save_dataframe_as_csv(
+            dataframe=validated_predictions, file_path=predictions_file_path
+        )
 
         logger.info("Batch predictions completed successfully")
 

@@ -209,22 +209,32 @@ def make_serializable(obj: Any) -> Union[int, float, List[Union[int, float]], An
         return json.JSONEncoder.default(None, obj)
 
 
-def load_hf_dataset(data: pd.DataFrame, text_col_name: str, target_col_name: str):
+def load_hf_dataset(
+    data: pd.DataFrame,
+    text_col_name: str,
+    target_col_name: str,
+    is_train: bool = True,
+    tokenizer_dir_path: str = None,
+):
 
     dataset = Dataset.from_pandas(data)
 
-    if target_col_name != "label":
+    if is_train and target_col_name != "label":
         dataset = dataset.rename_column(target_col_name, "label")
     if text_col_name != "text":
         dataset = dataset.rename_column(text_col_name, "text")
-    tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
+
+    tokenizer_path = (
+        tokenizer_dir_path if tokenizer_dir_path else "distilbert-base-uncased"
+    )
+    tokenizer = DistilBertTokenizer.from_pretrained(tokenizer_path)
 
     def tokenize_function(examples):
         return tokenizer(examples[text_col_name], padding="max_length", truncation=True)
 
     tokenized_dataset = dataset.map(tokenize_function, batched=True)
 
-    return tokenized_dataset
+    return tokenized_dataset, tokenizer
 
 
 def label_encoding(data: pd.DataFrame, col_name: str):
