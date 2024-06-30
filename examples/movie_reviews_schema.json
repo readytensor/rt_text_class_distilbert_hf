@@ -1,0 +1,26 @@
+{
+  "title": "Movie Reviews",
+  "description": "This dataset contains 2,000 movie review documents labeled with respect to their overall sentiment polarity (positive or negative). The task is to predict the sentiment polarity using the review text.",
+  "modelCategory": "text_classification_base",
+  "schemaVersion": 1.0,
+  "inputDataFormat": "CSV",
+  "encoding": "utf-8",
+  "id": {
+    "name": "id",
+    "description": "Unique identifier for each sample in the dataset."
+  },
+  "target": {
+    "name": "class",
+    "description": "..",
+    "classes": [
+      "neg",
+      "pos"
+    ]
+  },
+  "textField": {
+    "name": "text",
+    "description": "The text to be classified",
+    "dataType": "TEXT",
+    "example": "here's a rarity : a children's film that attempts to tackle a weighty subject , is there a god ? \ndone well , it could have been a gem among the wasteland of modern children's cinema . \nunfortunately , it isn't . \nwith jumbled messages , and an unclear audience , wide awake was better left asleep . \nfifth grader joshua beal ( joseph cross ) is in the middle of a moral crisis . \nhis beloved grandfather ( robert loggia ) has died , and joshua has begun a quest . \nhe wants to find god , to discover why bad things happen . \nthis religious quest is slightly disturbing for his parents ( dana delany and denis leary ) , but they do their best to cope with their son as he explores different religious faiths . \nat his catholic school , his favorite teacher , sister terry ( rosie o'donnell ) , tries to give him guidance , but this is a journey he must make on his own . \nmeanwhile , he is having the most momentous year of his life . \nhe has several adventures with his daredevil best friend dave ( timothy reifsnyder ) , he gets his first crush , and begins to wake up to the world around him while he is on his spiritual journey . \nit is somewhat confusing as to what the real audience for wide awake is expected to be . \non its surface , it appears to be a kid's film . \nhowever , it deals with serious issues , and is likely to be boring for today's instant-gratification kids . \nand while it might seem heartening to see that someone is trying to produce something thoughtful for the kidvid audience , wide awake asks serious questions , but only delivers a cheap gimmick for an answer . \nif there were a bit more meat in the story , adults on a nostalgic bent might get a kick out of the movie . \nthe actors who might have created a great cast ( o'donnell , leary and delany ) are wasted in roles that amount to little more than cameos . \nthe nostalgic elements ( best friend , favorite teacher , first crush , etc . ) have been done much better in other movies , and actually seem more like filler here . \nthe film's strongest scenes are some touching flashbacks depicting joshua's relationship with his grandfather . \nthey show more depth than is present anywhere else in the movie . \nmaybe the film would have been better if , instead of playing the relationship through flashbacks , it were set entirely during joshua's last year with his grandpa . \nit certainly would have been more entertaining . \nwide awake can best be described as a failed experiment . \nit starts out with noble aspirations , but never delivers on its promise . \nparents who do take their children to see this one ought to be prepared to answer some tough questions . . . that is if their kids aren't bored to death first . \n"
+  }
+}
