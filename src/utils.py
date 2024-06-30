@@ -281,3 +281,19 @@ def inverse_label_encoding(data: pd.DataFrame, col_name: str, mapping: Dict):
     inverse_mapping = {v: k for k, v in mapping.items()}
     data[col_name] = data[col_name].map(inverse_mapping)
     return data
+
+
+def get_sorted_class_names(label_encoding_map_file_path: str) -> List[str]:
+    """
+    Get the sorted class names from the label encoding map file.
+
+    Args:
+    - label_encoding_map_file_path (str): The path to the label encoding map file.
+
+    Returns:
+    - List[str]: A list containing the sorted class names."""
+    label_encoding_map = read_json_as_dict(label_encoding_map_file_path)
+    sorted_maping = dict(sorted(label_encoding_map.items(), key=lambda item: item[1]))
+    class_names = list(sorted_maping.keys())
+
+    return class_names

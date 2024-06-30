@@ -11,13 +11,11 @@ from data_models.infer_request_model import get_inference_request_body_model
 from logger import log_error
 from serve_utils import (
     ModelResources,
-    combine_predictions_response_with_explanations,
     generate_unique_request_id,
     get_model_resources,
     logger,
     transform_req_data_and_make_predictions,
 )
-from xai.explainer import get_explanations_from_explainer
 
 
 def create_app(model_resources):
@@ -88,59 +86,6 @@ def create_app(model_resources):
             return predictions_response
         except Exception as exc:
             err_msg = f"Error occurred during inference. Request id: {request_id}"
-            # Log the error to the general logging file 'serve.log'
-            logger.error(f"{err_msg} Error: {str(exc)}")
-            # Log the error to the separate logging file 'serve-error.log'
-            log_error(
-                message=err_msg, error=exc, error_fpath=paths.SERVE_ERROR_FILE_PATH
-            )
-            raise HTTPException(
-                status_code=500, detail=f"{err_msg} Error: {str(exc)}"
-            ) from exc
-
-    @app.post("/explain", tags=["explanations", "XAI"], response_class=JSONResponse)
-    async def explain(request: InferenceRequestBodyModel) -> dict:
-        """POST endpoint that takes input data as a JSON object and returns
-        the predicted class probabilities with explanations.
-
-        Args:
-            request (InferenceRequestBodyModel): The request body containing
-                the input data.
-
-        Raises:
-            HTTPException: If there is an error during inference.
-
-        Returns:
-            dict: A dictionary with "status", "message", "timestamp", "requestId",
-                "targetClasses", "targetDescription", "predictions",
-                and "explanationMethod" keys.
-        """
-        try:
-            request_id = generate_unique_request_id()
-            logger.info(f"Responding to explanation request. Request id: {request_id}")
-            logger.info("Starting prediction...")
-            data = pd.DataFrame.from_records(request.dict()["instances"])
-            (
-                transformed_data,
-                predictions_response,
-            ) = await transform_req_data_and_make_predictions(
-                data, model_resources, request_id
-            )
-            logger.info("Generating explanations...")
-            explanations = get_explanations_from_explainer(
-                instances_df=transformed_data,
-                explainer=model_resources.explainer,
-                predictor_model=model_resources.predictor_model,
-                class_names=model_resources.data_schema.target_classes,
-            )
-            logger.info("Combining predictions and explanations...")
-            predictions_response = combine_predictions_response_with_explanations(
-                predictions_response=predictions_response, explanations=explanations
-            )
-            logger.info("Returning explanations response...")
-            return predictions_response
-        except Exception as exc:
-            err_msg = f"Error occurred during explanations. Request id: {request_id}"
             # Log the error to the general logging file 'serve.log'
             logger.error(f"{err_msg} Error: {str(exc)}")
             # Log the error to the separate logging file 'serve-error.log'

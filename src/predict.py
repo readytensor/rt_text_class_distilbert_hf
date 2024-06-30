@@ -14,6 +14,7 @@ from utils import (
     read_json_as_dict,
     save_dataframe_as_csv,
     load_hf_dataset,
+    get_sorted_class_names,
 )
 
 logger = get_logger(task_name="predict")
@@ -126,11 +127,7 @@ def run_batch_predictions(
             predictor_model, test_data, return_probs=True
         )
 
-        label_encoding_map = read_json_as_dict(label_encoding_map_file_path)
-        sorted_maping = dict(
-            sorted(label_encoding_map.items(), key=lambda item: item[1])
-        )
-        class_names = list(sorted_maping.keys())
+        class_names = get_sorted_class_names(label_encoding_map_file_path)
 
         logger.info("Transforming predictions into dataframe...")
         predictions_df = create_predictions_dataframe(

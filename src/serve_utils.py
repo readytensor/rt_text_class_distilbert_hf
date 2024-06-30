@@ -12,10 +12,8 @@ from data_models.data_validator import validate_data
 from logger import get_logger, log_error
 from predict import create_predictions_dataframe
 from prediction.predictor_model import load_predictor_model, predict_with_model
-from preprocessing.preprocess import load_pipeline_and_target_encoder, transform_data
 from schema.data_schema import load_saved_schema
-from utils import read_json_as_dict
-from xai.explainer import load_explainer
+from utils import read_json_as_dict, load_hf_dataset, get_sorted_class_names
 
 logger = get_logger(task_name="serve")
 
@@ -25,25 +23,23 @@ class ModelResources:
         self,
         saved_schema_dir_path: str,
         model_config_file_path: str,
-        preprocessing_dir_path: str,
         predictor_dir_path: str,
-        explainer_dir_path: str,
+        label_encoder_file_path: str,
+        saved_tokenizer_dir_path: str,
     ):
         self.data_schema = load_saved_schema(saved_schema_dir_path)
         self.model_config = read_json_as_dict(model_config_file_path)
         self.predictor_model = load_predictor_model(predictor_dir_path)
-        self.preprocessor, self.target_encoder = load_pipeline_and_target_encoder(
-            preprocessing_dir_path
-        )
-        self.explainer = load_explainer(explainer_dir_path)
+        self.class_names = get_sorted_class_names(label_encoder_file_path)
+        self.saved_tokenizer_dir_path = saved_tokenizer_dir_path
 
 
 def get_model_resources(
     saved_schema_dir_path: str = paths.SAVED_SCHEMA_DIR_PATH,
     model_config_file_path: str = paths.MODEL_CONFIG_FILE_PATH,
-    preprocessing_dir_path: str = paths.PREPROCESSING_DIR_PATH,
     predictor_dir_path: str = paths.PREDICTOR_DIR_PATH,
-    explainer_dir_path: str = paths.EXPLAINER_DIR_PATH,
+    label_encoder_file_path: str = paths.LABEL_ENCODING_MAP_FILE_PATH,
+    saved_tokenizer_dir_path: str = paths.SAVED_TOKENIZER_DIR_PATH,
     **kwargs,
 ) -> ModelResources:
     """
@@ -52,10 +48,9 @@ def get_model_resources(
     Args:
         saved_schema_dir_path (str): Dir path to the saved data schema.
         model_config_file_path (str): Path to the model configuration file.
-        preprocessing_dir_path (str): he dir path where to save the pipeline
-            and target encoder.
         predictor_dir_path (str): Path to the saved predictor model file.
-        explainer_dir_path (str): Dir path where explainer is saved.
+        label_encoder_file_path (str): Path to the label encoding map file.
+        saved_tokenizer_dir_path (str): Path to the saved tokenizer directory.
     Returns:
         Loaded ModelResources object
     """
@@ -63,9 +58,9 @@ def get_model_resources(
         model_resources = ModelResources(
             saved_schema_dir_path,
             model_config_file_path,
-            preprocessing_dir_path,
             predictor_dir_path,
-            explainer_dir_path,
+            label_encoder_file_path,
+            saved_tokenizer_dir_path,
         )
     except Exception as exc:
         err_msg = "Error occurred loading model for serving."
@@ -107,23 +102,27 @@ async def transform_req_data_and_make_predictions(
 
     # validate the data
     logger.info("Validating data...")
+
     validated_data = validate_data(
         data=data, data_schema=model_resources.data_schema, is_train=False
     )
 
-    logger.info("Transforming data sample(s)...")
-    transformed_data, _ = transform_data(
-        model_resources.preprocessor, model_resources.target_encoder, validated_data
+    validated_data, _ = load_hf_dataset(
+        data=validated_data,
+        text_col_name=model_resources.data_schema.text_field,
+        target_col_name=model_resources.data_schema.target,
+        is_train=False,
+        tokenizer_dir_path=model_resources.saved_tokenizer_dir_path,
     )
 
     logger.info("Making predictions...")
     predictions_arr = predict_with_model(
-        model_resources.predictor_model, transformed_data, return_probs=True
+        model_resources.predictor_model, validated_data, return_probs=True
     )
     logger.info("Converting predictions array into dataframe...")
     predictions_df = create_predictions_dataframe(
         predictions_arr,
-        model_resources.data_schema.target_classes,
+        model_resources.class_names,
         model_resources.model_config["prediction_field_name"],
         data[model_resources.data_schema.id],
         model_resources.data_schema.id,
@@ -134,7 +133,7 @@ async def transform_req_data_and_make_predictions(
     predictions_response = create_predictions_response(
         predictions_df, model_resources.data_schema, request_id
     )
-    return transformed_data, predictions_response
+    return validated_data, predictions_response
 
 
 def create_predictions_response(
