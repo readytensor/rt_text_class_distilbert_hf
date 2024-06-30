@@ -243,7 +243,7 @@ def load_hf_dataset(
     tokenizer = DistilBertTokenizer.from_pretrained(tokenizer_path)
 
     def tokenize_function(examples):
-        return tokenizer(examples[text_col_name], padding="max_length", truncation=True)
+        return tokenizer(examples["text"], padding="max_length", truncation=True)
 
     tokenized_dataset = dataset.map(tokenize_function, batched=True)
 
@@ -261,7 +261,7 @@ def label_encoding(data: pd.DataFrame, col_name: str) -> Tuple[pd.DataFrame, Dic
     Returns:
     - (pd.DataFrame, Dict): The DataFrame with the target column label encoded and the mapping used for encoding.
     """
-    mapping = {label: i for i, label in enumerate(data[col_name].unique())}
+    mapping = {label: i for i, label in enumerate(data[col_name].unique().tolist())}
     data[col_name] = data[col_name].map(mapping)
     return data, mapping
 
@@ -297,3 +297,7 @@ def get_sorted_class_names(label_encoding_map_file_path: str) -> List[str]:
     class_names = list(sorted_maping.keys())
 
     return class_names
+
+
+# company_profile_description_requirements
+# company_profile_description_requirements

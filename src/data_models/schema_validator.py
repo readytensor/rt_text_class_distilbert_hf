@@ -1,6 +1,5 @@
-from collections import Counter
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pydantic import BaseModel, ValidationError, field_validator
 

@@ -9,7 +9,12 @@ from config import paths
 from datasets import Dataset
 from torch.utils.data import DataLoader
 from sklearn.exceptions import NotFittedError
-from transformers import DistilBertForSequenceClassification, Trainer, TrainingArguments
+from transformers import (
+    DistilBertForSequenceClassification,
+    Trainer,
+    TrainingArguments,
+    EarlyStoppingCallback,
+)
 
 
 warnings.filterwarnings("ignore")
@@ -40,6 +45,8 @@ class TextClassifier:
         num_train_epochs: int = 3,
         batch_size: int = 8,
         learning_rate: float = 5e-5,
+        early_stopping_patience: int = 2,
+        early_stopping_threshold: float = 0.05,
         **kwargs,
     ):
         """Construct a new DistilBERT text classifier.
@@ -49,6 +56,8 @@ class TextClassifier:
             num_train_epochs (int): The number of training epochs.
             batch_size (int): The batch size for training.
             learning_rate (float): The learning rate for training.
+            early_stopping_patience (int): The number of epochs to wait before early stopping.
+            early_stopping_threshold (float): The threshold for early stopping.
             **kwargs: Additional keyword arguments.
 
         """
@@ -56,6 +65,8 @@ class TextClassifier:
         self.num_train_epochs = num_train_epochs
         self.batch_size = batch_size
         self.learning_rate = learning_rate
+        self.early_stopping_patience = early_stopping_patience
+        self.early_stopping_threshold = early_stopping_threshold
         self.kwargs = kwargs
 
         self.model = self.build_model()
@@ -76,17 +87,34 @@ class TextClassifier:
         Args:
             train_inputs (Dataset): The features of the training data.
         """
+        train_val_split = train_dataset.train_test_split(test_size=0.1)
+        train_data = train_val_split["train"]
+        val_data = train_val_split["test"]
+
+        early_stopping_callback = EarlyStoppingCallback(
+            early_stopping_patience=self.early_stopping_patience,
+            early_stopping_threshold=self.early_stopping_threshold,
+        )
+
         training_args = TrainingArguments(
             output_dir=paths.MODEL_ARTIFACTS_PATH,
             num_train_epochs=self.num_train_epochs,
             per_device_train_batch_size=self.batch_size,
             learning_rate=self.learning_rate,
             logging_steps=10,
+            metric_for_best_model="eval_loss",
+            greater_is_better=False,
+            load_best_model_at_end=True,
+            eval_strategy="epoch",
+            save_strategy="epoch",
         )
+
         trainer = Trainer(
             model=self.model,
             args=training_args,
-            train_dataset=train_dataset,
+            train_dataset=train_data,
+            eval_dataset=val_data,
+            callbacks=[early_stopping_callback],
         )
         trainer.train()
         self._is_trained = True
