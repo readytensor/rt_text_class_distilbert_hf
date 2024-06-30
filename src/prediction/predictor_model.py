@@ -26,7 +26,7 @@ device = torch.device(
 
 
 class TextClassifier:
-    """A wrapper class for the Gradient Boosting binary classifier.
+    """A wrapper class for the text classifier.
 
     This class provides a consistent interface that can be used with other
     classifier models.
@@ -45,6 +45,11 @@ class TextClassifier:
         """Construct a new DistilBERT text classifier.
 
         Args:
+            num_classes (int): The number of classes in the dataset.
+            num_train_epochs (int): The number of training epochs.
+            batch_size (int): The batch size for training.
+            learning_rate (float): The learning rate for training.
+            **kwargs: Additional keyword arguments.
 
         """
         self.num_classes = num_classes
@@ -69,8 +74,7 @@ class TextClassifier:
         """Fit the text classifier to the training data.
 
         Args:
-            train_inputs (pandas.DataFrame): The features of the training data.
-            train_targets (pandas.Series): The labels of the training data.
+            train_inputs (Dataset): The features of the training data.
         """
         training_args = TrainingArguments(
             output_dir=paths.MODEL_ARTIFACTS_PATH,
@@ -91,7 +95,8 @@ class TextClassifier:
         """Predict class labels for the given data.
 
         Args:
-            inputs (pandas.DataFrame): The input data.
+            inputs (Dataset): The input data.
+            return_probs (bool): Whether to return class probabilities or labels.
         Returns:
             numpy.ndarray: The predicted class labels.
         """
@@ -144,6 +149,7 @@ class TextClassifier:
             "num_classes": self.num_classes,
             "num_train_epochs": self.num_train_epochs,
             "batch_size": self.batch_size,
+            "learning_rate": self.learning_rate,
         }
         joblib.dump(params, os.path.join(model_dir_path, PARAMS_FILE_NAME))
 
@@ -177,8 +183,8 @@ def train_predictor_model(
     Instantiate and train the predictor model.
 
     Args:
-        train_X (pd.DataFrame): The training data inputs.
-        train_y (pd.Series): The training data labels.
+        train_X (Dataset): The training data inputs.
+        num_classes (int): The number of classes in the dataset.
         hyperparameters (dict): Hyperparameters for the classifier.
 
     Returns:
@@ -190,14 +196,14 @@ def train_predictor_model(
 
 
 def predict_with_model(
-    classifier: TextClassifier, data: Dataset, return_probs=False
+    classifier: TextClassifier, data: Dataset, return_probs=True
 ) -> np.ndarray:
     """
     Predict class probabilities for the given data.
 
     Args:
-        classifier (Classifier): The classifier model.
-        data (pd.DataFrame): The input data.
+        classifier (TextClassifier): The classifier model.
+        data (Dataset): The input data.
         return_probs (bool): Whether to return class probabilities or labels.
             Defaults to True.
 
@@ -212,7 +218,7 @@ def save_predictor_model(model: TextClassifier, predictor_dir_path: str) -> None
     Save the classifier model to disk.
 
     Args:
-        model (Classifier): The classifier model to save.
+        model (TextClassifier): The classifier model to save.
         predictor_dir_path (str): Dir path to which to save the model.
     """
     if not os.path.exists(predictor_dir_path):
@@ -228,7 +234,7 @@ def load_predictor_model(predictor_dir_path: str) -> TextClassifier:
         predictor_dir_path (str): Dir path where model is saved.
 
     Returns:
-        Classifier: A new instance of the loaded classifier model.
+        TextClassifier: A new instance of the loaded classifier model.
     """
     return TextClassifier.load(predictor_dir_path)
 
@@ -240,7 +246,7 @@ def evaluate_predictor_model(
     Evaluate the classifier model and return the accuracy.
 
     Args:
-        model (Classifier): The classifier model.
+        model (TextClassifier): The classifier model.
         x_test (pd.DataFrame): The features of the test data.
         y_test (pd.Series): The labels of the test data.
 
