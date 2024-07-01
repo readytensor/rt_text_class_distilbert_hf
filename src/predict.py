@@ -15,6 +15,7 @@ from utils import (
     save_dataframe_as_csv,
     load_hf_dataset,
     get_sorted_class_names,
+    ResourceTracker,
 )
 
 logger = get_logger(task_name="predict")
@@ -94,53 +95,54 @@ def run_batch_predictions(
     """
 
     try:
-        logger.info("Making batch predictions...")
+        with ResourceTracker(logger=logger, monitoring_interval=0.1):
+            logger.info("Making batch predictions...")
 
-        logger.info("Loading schema...")
-        data_schema = load_saved_schema(saved_schema_dir_path)
+            logger.info("Loading schema...")
+            data_schema = load_saved_schema(saved_schema_dir_path)
 
-        logger.info("Loading model config...")
-        model_config = read_json_as_dict(model_config_file_path)
+            logger.info("Loading model config...")
+            model_config = read_json_as_dict(model_config_file_path)
 
-        logger.info("Loading prediction input data...")
-        test_data = read_csv_in_directory(file_dir_path=test_dir)
+            logger.info("Loading prediction input data...")
+            test_data = read_csv_in_directory(file_dir_path=test_dir)
 
-        # validate the data
-        logger.info("Validating prediction data...")
-        test_data = validate_data(
-            data=test_data, data_schema=data_schema, is_train=False
-        )
+            # validate the data
+            logger.info("Validating prediction data...")
+            test_data = validate_data(
+                data=test_data, data_schema=data_schema, is_train=False
+            )
 
-        test_data, _ = load_hf_dataset(
-            test_data,
-            data_schema.text_field,
-            data_schema.target,
-            is_train=False,
-            tokenizer_dir_path=saved_tokenizer_dir_path,
-        )
+            test_data, _ = load_hf_dataset(
+                test_data,
+                data_schema.text_field,
+                data_schema.target,
+                is_train=False,
+                tokenizer_dir_path=saved_tokenizer_dir_path,
+            )
 
-        logger.info("Loading predictor model...")
-        predictor_model = load_predictor_model(predictor_dir_path)
+            logger.info("Loading predictor model...")
+            predictor_model = load_predictor_model(predictor_dir_path)
 
-        logger.info("Making predictions...")
-        predictions_arr = predict_with_model(
-            predictor_model, test_data, return_probs=True
-        )
+            logger.info("Making predictions...")
+            predictions_arr = predict_with_model(
+                predictor_model, test_data, return_probs=True
+            )
 
-        class_names = get_sorted_class_names(label_encoding_map_file_path)
+            class_names = get_sorted_class_names(label_encoding_map_file_path)
 
-        logger.info("Transforming predictions into dataframe...")
-        predictions_df = create_predictions_dataframe(
-            predictions_arr,
-            class_names,
-            model_config["prediction_field_name"],
-            test_data[data_schema.id],
-            data_schema.id,
-            return_probs=True,
-        )
+            logger.info("Transforming predictions into dataframe...")
+            predictions_df = create_predictions_dataframe(
+                predictions_arr,
+                class_names,
+                model_config["prediction_field_name"],
+                test_data[data_schema.id],
+                data_schema.id,
+                return_probs=True,
+            )
 
-        logger.info("Validating predictions...")
-        validated_predictions = validate_predictions(predictions_df, data_schema)
+            logger.info("Validating predictions...")
+            validated_predictions = validate_predictions(predictions_df, data_schema)
 
         logger.info("Saving predictions...")
         save_dataframe_as_csv(

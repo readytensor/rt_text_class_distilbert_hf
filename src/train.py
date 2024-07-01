@@ -16,6 +16,7 @@ from utils import (
     save_json,
     load_hf_dataset,
     label_encoding,
+    ResourceTracker,
 )
 
 logger = get_logger(task_name="train")
@@ -48,51 +49,54 @@ def run_training(
     """
 
     try:
+        with ResourceTracker(logger=logger, monitoring_interval=0.1):
+            logger.info("Starting training...")
+            # load and save schema
+            logger.info("Loading and saving schema...")
+            data_schema = load_json_data_schema(input_schema_dir)
+            save_schema(schema=data_schema, save_dir_path=saved_schema_dir_path)
 
-        logger.info("Starting training...")
-        # load and save schema
-        logger.info("Loading and saving schema...")
-        data_schema = load_json_data_schema(input_schema_dir)
-        save_schema(schema=data_schema, save_dir_path=saved_schema_dir_path)
+            # load model config
+            logger.info("Loading model config...")
+            model_config = read_json_as_dict(model_config_file_path)
 
-        # load model config
-        logger.info("Loading model config...")
-        model_config = read_json_as_dict(model_config_file_path)
+            # set seeds
+            logger.info("Setting seeds...")
+            set_seeds(seed_value=model_config["seed_value"])
 
-        # set seeds
-        logger.info("Setting seeds...")
-        set_seeds(seed_value=model_config["seed_value"])
+            # load train data
+            logger.info("Loading train data...")
+            train_data = read_csv_in_directory(file_dir_path=train_dir)
 
-        # load train data
-        logger.info("Loading train data...")
-        train_data = read_csv_in_directory(file_dir_path=train_dir)
+            # validate the data
+            logger.info("Validating train data...")
+            train_data = validate_data(
+                data=train_data, data_schema=data_schema, is_train=True
+            )
 
-        # validate the data
-        logger.info("Validating train data...")
-        train_data = validate_data(
-            data=train_data, data_schema=data_schema, is_train=True
-        )
+            # target encoding
+            train_data, label_encoding_map = label_encoding(
+                train_data, data_schema.target
+            )
+            save_json(label_encoding_map_file_path, label_encoding_map)
 
-        # target encoding
-        train_data, label_encoding_map = label_encoding(train_data, data_schema.target)
-        save_json(label_encoding_map_file_path, label_encoding_map)
+            train_data, tokenizer = load_hf_dataset(
+                train_data, data_schema.text_field, data_schema.target
+            )
 
-        train_data, tokenizer = load_hf_dataset(
-            train_data, data_schema.text_field, data_schema.target
-        )
+            logger.info("Training classifier...")
+            default_hyperparameters = read_json_as_dict(
+                default_hyperparameters_file_path
+            )
+            predictor = train_predictor_model(
+                train_data,
+                num_classes=len(data_schema.target_classes),
+                hyperparameters=default_hyperparameters,
+            )
 
         logger.info("Saving tokenizer...")
         tokenizer.save_pretrained(saved_tokenizer_dir_path)
 
-        logger.info("Training classifier...")
-        default_hyperparameters = read_json_as_dict(default_hyperparameters_file_path)
-        predictor = train_predictor_model(
-            train_data,
-            num_classes=len(data_schema.target_classes),
-            hyperparameters=default_hyperparameters,
-        )
-
-        # save predictor model
         logger.info("Saving classifier...")
         save_predictor_model(predictor, predictor_dir_path)
 
