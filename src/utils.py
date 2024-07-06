@@ -239,7 +239,7 @@ def load_hf_dataset(
     max_length = max([len(t.split(" ")) for t in text])
 
     # Increase max_length by 25% to account for special tokens and subword tokenization
-    max_length = int(1.25 * max_length)
+    max_length = min(int(1.25 * max_length), 512)
 
     dataset = Dataset.from_pandas(data)
 
