@@ -3,6 +3,9 @@ import os
 # Path to the root directory which contains the src directory
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Path to the src directory
+SRC = os.path.join(ROOT_DIR, "src")
+
 # Path into the mounted volume:
 #   set to environment variable MODEL_INPUTS_OUTPUTS_PATH if it exists
 #   else: set to default path which would be <path_to_root>/model_inputs_outputs/
@@ -71,3 +74,6 @@ LABEL_ENCODING_MAP_FILE_PATH = os.path.join(
 
 # Path to tokenizer directory
 SAVED_TOKENIZER_DIR_PATH = os.path.join(MODEL_ARTIFACTS_PATH, "tokenizer")
+
+# Path to temporary directory
+TEMP_DIR_PATH = os.path.join(SRC, "temp")

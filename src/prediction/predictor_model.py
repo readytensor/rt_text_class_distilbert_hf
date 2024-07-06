@@ -97,7 +97,7 @@ class TextClassifier:
         )
 
         training_args = TrainingArguments(
-            output_dir=paths.MODEL_ARTIFACTS_PATH,
+            output_dir=paths.TEMP_DIR_PATH,
             num_train_epochs=self.num_train_epochs,
             per_device_train_batch_size=self.batch_size,
             learning_rate=self.learning_rate,

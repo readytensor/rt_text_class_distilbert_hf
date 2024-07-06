@@ -17,7 +17,9 @@ from utils import (
     get_sorted_class_names,
     ResourceTracker,
 )
+from transformers import logging as hf_logging
 
+hf_logging.set_verbosity_error()
 logger = get_logger(task_name="predict")
 
 

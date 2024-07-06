@@ -1,3 +1,4 @@
+import warnings
 from config import paths
 
 from data_models.data_validator import validate_data
@@ -18,7 +19,12 @@ from utils import (
     label_encoding,
     ResourceTracker,
 )
+from transformers import logging as hf_logging
 
+hf_logging.set_verbosity_error()
+
+
+warnings.filterwarnings("ignore")
 logger = get_logger(task_name="train")
 
 

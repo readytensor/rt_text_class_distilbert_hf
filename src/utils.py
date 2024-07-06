@@ -234,6 +234,12 @@ def load_hf_dataset(
     Returns:
     - Tuple[Dataset, DistilBertTokenizer]: A tuple containing the tokenized dataset and the tokenizer.
     """
+    # Calculate maximum sequence length if we split by space
+    text = data[text_col_name].tolist()
+    max_length = max([len(t.split(" ")) for t in text])
+
+    # Increase max_length by 25% to account for special tokens and subword tokenization
+    max_length = int(1.25 * max_length)
 
     dataset = Dataset.from_pandas(data)
 
@@ -248,7 +254,12 @@ def load_hf_dataset(
     tokenizer = DistilBertTokenizer.from_pretrained(tokenizer_path)
 
     def tokenize_function(examples):
-        return tokenizer(examples["text"], padding="max_length", truncation=True)
+        return tokenizer(
+            examples["text"],
+            padding="max_length",
+            truncation=True,
+            max_length=max_length,
+        )
 
     tokenized_dataset = dataset.map(tokenize_function, batched=True)
 
